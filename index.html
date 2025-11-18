@@ -1,0 +1,273 @@
+<!doctype html>
+<html lang="az">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Excel/PDF → Quiz | Tək fayl</title>
+  <style>
+    :root{ --bg:#0f172a; --card:#111827; --muted:#94a3b8; --text:#e5e7eb; --accent:#22c55e; --accent-2:#38bdf8; --danger:#ef4444; --border:#1f2937; }
+    *{box-sizing:border-box}
+    body{margin:0;background:linear-gradient(180deg,#0b1224,#0f172a 40%,#0b1224);color:var(--text);font:16px/1.5 system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,"Noto Sans","Helvetica Neue",Arial}
+    .container{max-width:1100px;margin:40px auto;padding:0 16px}
+    h1{margin:0 0 16px}
+    .panel{background:rgba(17,24,39,.85);border:1px solid var(--border);border-radius:16px;box-shadow:0 10px 30px rgba(0,0,0,.35);backdrop-filter:blur(6px);margin-bottom:16px}
+    .panel .hd{padding:14px 16px;border-bottom:1px solid var(--border);display:flex;gap:10px;align-items:center;justify-content:space-between}
+    .panel .bd{padding:16px}
+    .row{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+    .row2{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
+    .row3{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+    label{font-size:13px;color:var(--muted);display:block;margin-bottom:6px}
+    input[type="number"],select,.file{width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:12px;background:#0b1224;color:var(--text)}
+    .file{display:flex;gap:10px;align-items:center;cursor:pointer}
+    .btn{appearance:none;border:0;border-radius:12px;padding:12px 16px;font-weight:700;color:#0b1224;background:linear-gradient(135deg,#22c55e,#38bdf8);cursor:pointer;box-shadow:0 6px 20px rgba(34,197,94,.25);transition:transform .06s ease}
+    .btn.secondary{background:#111827;color:var(--text);border:1px solid var(--border);box-shadow:none}
+    .btn:hover{transform:translateY(-1px)}
+    .q{padding:16px;border:1px solid var(--border);border-radius:14px;margin-bottom:14px;background:#0b1224}
+    .q h3{margin:0 0 8px 0;font-size:16px}
+    .opt{display:block;margin:6px 0;padding:8px;border-radius:10px;border:1px solid transparent}
+    .opt input{margin-right:8px}
+    .wrong{border-color:rgba(239,68,68,.55);background:rgba(239,68,68,.10)}
+    .correct{border-color:rgba(34,197,94,.55);background:rgba(34,197,94,.10)}
+    .muted{color:var(--muted)}
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Excel/PDF-dən Random Quiz</h1>
+
+    <div class="panel">
+      <div class="hd"><strong>1) Fayl yüklə</strong><span class="muted">(.xlsx/.xls və ya .pdf)</span></div>
+      <div class="bd row2">
+        <div>
+          <label>Mənbə növü</label>
+          <select id="sourceType">
+            <option value="excel">Excel (.xlsx)</option>
+            <option value="pdf">PDF (√ işarəli suallar)</option>
+          </select>
+        </div>
+        <label class="file" for="file">
+          <input id="file" type="file" accept=".xlsx,.xls,.pdf" style="display:none" />
+          <span id="fileName">Faylı seç…</span>
+        </label>
+      </div>
+      <div class="bd row3" id="mapping" style="display:none">
+        <div>
+          <label>Sual sütunu</label>
+          <select id="qCol"></select>
+        </div>
+        <div>
+          <label>Düzgün cavab sütunu</label>
+          <select id="cCol"></select>
+        </div>
+        <div>
+          <label>Digər cavab sütunları (4-ə qədər, Ctrl/Cmd ilə seç)</label>
+          <select id="oCols" multiple size="6"></select>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="hd"><strong>2) Aralıq və say</strong></div>
+      <div class="bd row">
+        <div>
+          <label>Başlanğıc sətir (1-dən başlayır)</label>
+          <input id="rangeStart" type="number" min="1" value="1" />
+        </div>
+        <div>
+          <label>Son sətir</label>
+          <input id="rangeEnd" type="number" min="1" value="100" />
+        </div>
+        <div>
+          <label>Nümunə sual sayı</label>
+          <input id="count" type="number" min="1" value="30" />
+        </div>
+        <div style="display:flex;align-items:end;gap:8px">
+          <button class="btn" id="start">Quizə başla</button>
+          <button class="btn secondary" id="reshuffle" disabled>Yenidən qarışdır</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel" id="quizPanel" style="display:none">
+      <div class="hd"><strong>Quiz</strong> <span class="muted" id="meta"></span></div>
+      <div class="bd" id="quiz"></div>
+      <div class="bd" style="display:flex;gap:10px;align-items:center">
+        <button class="btn" id="submit">Cavabları təsdiqlə</button>
+        <span class="muted" id="liveCounter">Seçilməyən sual: 0</span>
+      </div>
+    </div>
+
+    <div class="panel" id="resultPanel" style="display:none">
+      <div class="hd"><strong>Nəticə</strong></div>
+      <div class="bd" id="result"></div>
+    </div>
+  </div>
+
+  <!-- Kitabxanalar -->
+  <script src="https://unpkg.com/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+  <script>
+    // ===== Util =====
+    const $ = (id)=>document.getElementById(id);
+    const norm = (s)=> (s ?? '').toString().replace(/\s+/g,' ').trim();
+    const unique = (arr)=>[...new Set(arr.filter(Boolean))];
+    const clamp = (v,min,max)=>Math.max(min,Math.min(max,v));
+    const shuffle = (a)=>{const x=[...a]; for(let i=x.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1)); [x[i],x[j]]=[x[j],x[i]];} return x;};
+
+    // ===== State =====
+    let HEADERS=[]; let RAW_ROWS=[]; let QUIZ=[];
+    const defaultMap = { q:'Sual', c:'Cavab01/Duzgun cavab', o:['Cavab02','Cavab03','Cavab04','Cavab05'] };
+
+    // ===== File load (Excel və PDF) =====
+    $('file').addEventListener('change', async (e)=>{
+      const f=e.target.files[0]; if(!f) return; $('fileName').textContent=f.name;
+      const mode = $('sourceType').value;
+      if(mode==='excel'){
+        const data = await f.arrayBuffer();
+        const wb = XLSX.read(data,{type:'array'});
+        const sheet = wb.Sheets[wb.SheetNames[0]];
+        const rows = XLSX.utils.sheet_to_json(sheet,{defval:''});
+        RAW_ROWS = rows; HEADERS = Object.keys(rows[0]||{});
+        buildMappingUI();
+        alert('Excel oxundu. Aralığı seç və "Quizə başla" bas.');
+      } else {
+        // PDF parse: "no. question ... • option  • option  √ correct" kimi
+        const arr = new Uint8Array(await f.arrayBuffer());
+        const pdf = await pdfjsLib.getDocument({data:arr}).promise;
+        let textAll = '';
+        for(let p=1;p<=pdf.numPages;p++){
+          const page = await pdf.getPage(p);
+          const content = await page.getTextContent();
+          const line = content.items.map(it=>it.str).join(' ');
+          textAll += ' ' + line;
+        }
+        const big = norm(textAll);
+        const blocks = big.split(/(?=\b\d{1,3}\.)/g).map(s=>s.trim()).filter(Boolean);
+        const parsed=[];
+        const optR = /(√|•)\s*([^√•]+?)(?=(?:√|•|$))/g; // √ işarəli düzgün cavab
+        for(const b of blocks){
+          const m = b.match(/^\s*(\d{1,3})\.\s*(.+?)\s*(√|•)/);
+          if(!m) continue;
+          const qText = norm(m[2]);
+          let mm; const opts=[]; let correct='';
+          while((mm = optR.exec(b))!==null){
+            const isGood = mm[1]==='√';
+            const txt = norm(mm[2]);
+            if(!txt) continue; opts.push(txt); if(isGood) correct = txt;
+          }
+          if(qText && correct && opts.length>=2){
+            parsed.push({Sual:qText, Correct:correct, Options:opts});
+          }
+        }
+        // PDF → Excel-uyğun sətirlər
+        RAW_ROWS = parsed.map(r=>({
+          'Sual': r.Sual,
+          'Cavab01/Duzgun cavab': r.Correct,
+          'Cavab02': r.Options.find(o=>o!==r.Correct) || '',
+          'Cavab03': r.Options.filter(o=>o!==r.Correct)[1] || '',
+          'Cavab04': r.Options.filter(o=>o!==r.Correct)[2] || '',
+          'Cavab05': r.Options.filter(o=>o!==r.Correct)[3] || ''
+        }));
+        HEADERS = ['Sual','Cavab01/Duzgun cavab','Cavab02','Cavab03','Cavab04','Cavab05'];
+        buildMappingUI();
+        alert('PDF oxundu və avtomatik parse edildi. Aralığı seç və "Quizə başla" bas.');
+      }
+    });
+
+    function buildMappingUI(){
+      const mapEl=$('mapping'); const qSel=$('qCol'); const cSel=$('cCol'); const oSel=$('oCols');
+      [qSel,cSel,oSel].forEach(el=>el.innerHTML='');
+      HEADERS.forEach(h=>{ qSel.add(new Option(h,h)); cSel.add(new Option(h,h)); oSel.add(new Option(h,h)); });
+      qSel.value = HEADERS.includes(defaultMap.q)? defaultMap.q : HEADERS[0];
+      cSel.value = HEADERS.includes(defaultMap.c)? defaultMap.c : HEADERS[1]||HEADERS[0];
+      [...oSel.options].forEach(opt=>{ if(defaultMap.o.includes(opt.value)) opt.selected=true; });
+      mapEl.style.display='grid';
+    }
+
+    function buildPoolIndices(){
+      const total = RAW_ROWS.length;
+      let start = parseInt($('rangeStart').value||'1',10);
+      let end = parseInt($('rangeEnd').value||String(total),10);
+      start = Math.max(1, Math.min(total, start));
+      end = Math.max(1, Math.min(total, end));
+      if(end < start) [start,end] = [end,start];
+      const idx=[]; for(let i=start-1;i<=end-1;i++) idx.push(i); return idx;
+    }
+
+    function buildQuiz(){
+      const qCol=$('qCol').value, cCol=$('cCol').value, oCols=[...$('oCols').selectedOptions].map(o=>o.value);
+      const pool = buildPoolIndices();
+      const count = clamp(parseInt($('count').value||'1',10),1,pool.length);
+      const sampled = shuffle(pool).slice(0,count);
+      const items=[];
+      sampled.forEach((ix,i)=>{
+        const r=RAW_ROWS[ix]||{}; const q=norm(r[qCol]); const correct=norm(r[cCol]);
+        const others = unique(oCols.map(k=>norm(r[k]))).filter(x=>x && x!==correct);
+        const options = shuffle(unique([correct,...others])).slice(0,5);
+        if(!q || !correct || options.length<2) return;
+        items.push({id:i+1,question:q,correct,options});
+      });
+      return items;
+    }
+
+    function renderQuiz(){
+      const wrap=$('quiz'); wrap.innerHTML='';
+      QUIZ.forEach((q,i)=>{
+        const div=document.createElement('div'); div.className='q';
+        const h=document.createElement('h3'); h.textContent=`${i+1}. ${q.question}`; div.appendChild(h);
+        q.options.forEach((opt)=>{
+          const lab=document.createElement('label'); lab.className='opt';
+          const input=document.createElement('input'); input.type='radio'; input.name='q'+i; input.value=opt; lab.appendChild(input);
+          lab.appendChild(document.createTextNode(opt));
+          div.appendChild(lab);
+        });
+        wrap.appendChild(div);
+      });
+      $('quizPanel').style.display='block';
+      $('reshuffle').disabled=false;
+      updateLiveCounter();
+      $('meta').textContent=`• Sual sayı: ${QUIZ.length}`;
+    }
+
+    function updateLiveCounter(){
+      let unanswered=0; for(let i=0;i<QUIZ.length;i++){ if(!document.querySelector(`input[name="q${i}"]:checked`)) unanswered++; }
+      $('liveCounter').textContent=`Seçilməyən sual: ${unanswered}`;
+    }
+
+    $('quiz').addEventListener('change',(e)=>{ if(e.target && e.target.type==='radio') updateLiveCounter(); });
+
+    $('start').addEventListener('click',()=>{
+      if(!RAW_ROWS.length){ alert('Əvvəlcə faylı yüklə.'); return; }
+      QUIZ = buildQuiz();
+      if(!QUIZ.length){ alert('Verilən aralıqda düzgün sual tapılmadı. Xəritələməni və aralığı yoxla.'); return; }
+      renderQuiz(); $('resultPanel').style.display='none';
+    });
+
+    $('reshuffle').addEventListener('click',()=>{ QUIZ = buildQuiz(); renderQuiz(); });
+
+    $('submit').addEventListener('click',()=>{
+      if(!QUIZ.length) return; let right=0; const wrong=[]; const quizDiv=$('quiz');
+      QUIZ.forEach((q,i)=>{
+        const chosen=document.querySelector(`input[name="q${i}"]:checked`);
+        const ans=norm(chosen?.value); const qDiv=quizDiv.children[i];
+        [...qDiv.querySelectorAll('.opt')].forEach(l=>l.classList.remove('wrong','correct'));
+        if(ans && ans===norm(q.correct)){
+          right++; const ok=[...qDiv.querySelectorAll('label')].find(l=>norm(l.querySelector('input').value)===norm(q.correct)); if(ok) ok.classList.add('correct');
+        } else {
+          if(ans){ const w=[...qDiv.querySelectorAll('label')].find(l=>norm(l.querySelector('input').value)===ans); if(w) w.classList.add('wrong'); }
+          const c=[...qDiv.querySelectorAll('label')].find(l=>norm(l.querySelector('input').value)===norm(q.correct)); if(c) c.classList.add('correct');
+          wrong.push({idx:i+1,q:q.question,chosen:ans||'—',correct:q.correct});
+        }
+      });
+      const total=QUIZ.length; const pct=Math.round(right/total*100); const res=$('result');
+      res.innerHTML=`<p><strong>Bal:</strong> ${right} / ${total} (${pct}%)</p>`;
+      if(wrong.length){
+        const ul=document.createElement('ul'); ul.style.paddingLeft='18px';
+        wrong.forEach(w=>{ const li=document.createElement('li'); li.innerHTML=`<strong>${w.idx}.</strong> ${w.q}<br><span class="muted">Sənin cavabın:</span> <span style="color: var(--danger)"><strong>${w.chosen}</strong></span> &nbsp; | &nbsp; <span class="muted">Düzgün:</span> <span style="color: var(--accent)"><strong>${w.correct}</strong></span>`; ul.appendChild(li); });
+        res.appendChild(document.createElement('hr')); const head=document.createElement('p'); head.innerHTML='<strong>Səhvlər:</strong>'; res.appendChild(head); res.appendChild(ul);
+      }
+      $('resultPanel').style.display='block'; window.scrollTo({top: $('resultPanel').offsetTop - 12, behavior:'smooth'});
+    });
+  </script>
+</body>
+</html>
