@@ -5,30 +5,161 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Excel/PDF → Quiz | Tək fayl</title>
   <style>
-    :root{ --bg:#0f172a; --card:#111827; --muted:#94a3b8; --text:#e5e7eb; --accent:#22c55e; --accent-2:#38bdf8; --danger:#ef4444; --border:#1f2937; }
-    *{box-sizing:border-box}
-    body{margin:0;background:linear-gradient(180deg,#0b1224,#0f172a 40%,#0b1224);color:var(--text);font:16px/1.5 system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,"Noto Sans","Helvetica Neue",Arial}
-    .container{max-width:1100px;margin:40px auto;padding:0 16px}
-    h1{margin:0 0 16px}
-    .panel{background:rgba(17,24,39,.85);border:1px solid var(--border);border-radius:16px;box-shadow:0 10px 30px rgba(0,0,0,.35);backdrop-filter:blur(6px);margin-bottom:16px}
-    .panel .hd{padding:14px 16px;border-bottom:1px solid var(--border);display:flex;gap:10px;align-items:center;justify-content:space-between}
-    .panel .bd{padding:16px}
-    .row{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
-    .row2{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
-    .row3{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
-    label{font-size:13px;color:var(--muted);display:block;margin-bottom:6px}
-    input[type="number"],select,.file{width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:12px;background:#0b1224;color:var(--text)}
-    .file{display:flex;gap:10px;align-items:center;cursor:pointer}
-    .btn{appearance:none;border:0;border-radius:12px;padding:12px 16px;font-weight:700;color:#0b1224;background:linear-gradient(135deg,#22c55e,#38bdf8);cursor:pointer;box-shadow:0 6px 20px rgba(34,197,94,.25);transition:transform .06s ease}
-    .btn.secondary{background:#111827;color:var(--text);border:1px solid var(--border);box-shadow:none}
-    .btn:hover{transform:translateY(-1px)}
-    .q{padding:16px;border:1px solid var(--border);border-radius:14px;margin-bottom:14px;background:#0b1224}
-    .q h3{margin:0 0 8px 0;font-size:16px}
-    .opt{display:block;margin:6px 0;padding:8px;border-radius:10px;border:1px solid transparent}
-    .opt input{margin-right:8px}
-    .wrong{border-color:rgba(239,68,68,.55);background:rgba(239,68,68,.10)}
-    .correct{border-color:rgba(34,197,94,.55);background:rgba(34,197,94,.10)}
-    .muted{color:var(--muted)}
+:root{
+  /* Light background + dark panels */
+  --bg1:#fff7f6;
+  --bg2:#f6ecea;
+
+  --card:#1f1d22;      /* panel dark */
+  --card2:#242129;     /* question dark */
+  --muted:#bdb4b7;
+  --text:#f6f1f2;
+
+  --accent:#f7a6b3;    /* soft pink */
+  --accent-2:#fbc4ab;  /* peach */
+  --danger:#ef7777;
+  --border:rgba(255,255,255,.10);
+}
+
+*{box-sizing:border-box}
+
+body{
+  margin:0;
+  min-height:100vh;
+  background: radial-gradient(circle at top, var(--bg1) 0%, var(--bg2) 70%);
+  color: var(--text);
+  font: 18.5px/1.7 "Inter", system-ui, -apple-system, "Segoe UI", sans-serif; /* font bigger */
+}
+
+.container{
+  max-width: 980px;
+  margin: 44px auto;
+  padding: 0 18px 60px;
+}
+
+h1{
+  margin:0 0 24px;
+  text-align:center;
+  font-size: 30px;   /* bigger */
+  font-weight: 800;
+  color:#2b2023;
+  letter-spacing:.2px;
+  text-shadow: 0 6px 18px rgba(0,0,0,.06);
+}
+
+/* Panels */
+.panel{
+  background: rgba(31,29,34,.96);
+  border: 1px solid var(--border);
+  border-radius: 22px;
+  box-shadow: 0 18px 40px rgba(0,0,0,.18);
+  margin-bottom: 22px;
+}
+
+.panel .hd{
+  padding: 18px 22px;
+  border-bottom: 1px solid var(--border);
+  display:flex;
+  gap:10px;
+  align-items:center;
+  justify-content:space-between;
+  background: rgba(255,255,255,.04);
+  border-radius: 22px 22px 0 0;
+}
+
+.panel .bd{ padding: 22px; }
+
+.row{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+.row2{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
+.row3{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+
+/* Labels */
+label{
+  font-size: 14.5px;  /* bigger */
+  color: var(--muted);
+  display:block;
+  margin-bottom: 8px;
+}
+
+/* Inputs */
+input[type="number"], select, .file{
+  width:100%;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: rgba(255,255,255,.06);
+  color: var(--text);
+  font-size: 16.5px; /* bigger */
+}
+input[type="number"]:focus, select:focus{
+  outline:none;
+  border-color: rgba(247,166,179,.7);
+  box-shadow: 0 0 0 4px rgba(247,166,179,.12);
+}
+
+.file{display:flex;gap:10px;align-items:center;cursor:pointer}
+
+/* Buttons */
+.btn{
+  appearance:none;
+  border:0;
+  border-radius: 14px;
+  padding: 13px 18px;
+  font-weight: 800;
+  font-size: 16.5px;  /* bigger */
+  color:#1a1416;
+  background: linear-gradient(135deg,var(--accent),var(--accent-2));
+  cursor:pointer;
+  box-shadow: 0 10px 22px rgba(247,166,179,.28);
+  transition: transform .08s ease, box-shadow .2s ease;
+}
+.btn:hover{ transform: translateY(-2px); box-shadow: 0 14px 26px rgba(247,166,179,.36); }
+
+.btn.secondary{
+  background: rgba(255,255,255,.06);
+  color: var(--text);
+  border: 1px solid var(--border);
+  box-shadow:none;
+}
+
+/* Question frames bigger & cleaner */
+.q{
+  padding: 22px;                 /* bigger */
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  margin-bottom: 18px;
+  background: rgba(36,33,41,.96);
+  box-shadow: 0 10px 24px rgba(0,0,0,.18);
+}
+
+.q h3{
+  margin:0 0 12px 0;
+  font-size: 19px;               /* bigger */
+  font-weight: 800;
+}
+
+/* Options */
+.opt{
+  display:block;
+  margin: 10px 0;
+  padding: 11px 12px;
+  border-radius: 14px;
+  border: 1px solid transparent;
+  background: rgba(255,255,255,.05);
+  font-size: 16.5px;             /* bigger */
+}
+.opt:hover{ background: rgba(255,255,255,.08); }
+.opt input{ margin-right: 10px; transform: scale(1.05); }
+
+/* Correct / wrong */
+.wrong{ border-color: rgba(239,68,68,.55); background: rgba(239,68,68,.14); }
+.correct{ border-color: rgba(34,197,94,.55); background: rgba(34,197,94,.14); }
+
+.muted{ color: var(--muted); }
+
+/* Result text readable on light background area */
+#resultPanel .bd{ color: var(--text); }
+
   </style>
 </head>
 <body>
